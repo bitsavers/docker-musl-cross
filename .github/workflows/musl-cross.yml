@@ -6,12 +6,10 @@ on:
       version:
         description: 'Musl-cross version(e.g. 20230808)'
         required: true
-      image_tag_version:
-        description: 'Container image tag version(e.g. latest or 20230808)'
-        required: true
 
 env:
-  REPO_NAME: 'musl-cross'
+  REGISTRY_NAME: 'quay.io'
+  REPO_NAME: 'bitsaver/musl-cross'
 
 jobs:
   build:
@@ -227,35 +225,31 @@ jobs:
           #   }
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Prepare build
         id: prepare-build
         run: |
-          VERSION=${{ matrix.triples.arch_type }}-${{ github.event.inputs.image_tag_version }}
-          USER_NAME=bitsaver
-          REPO_NAME=${{ env.REPO_NAME }}
-          IMAGE_NAME=${{ matrix.triples.arch_type }}
-          REGISTRY_NAME=quay.io
-          TAGS="${REGISTRY_NAME}/${USER_NAME}/${REPO_NAME}:${VERSION}"
+          IMAGE_NAME=${{ matrix.triples.arch_type }}-${{ github.event.inputs.version }}
+          TAGS="${{ env.REGISTRY_NAME }}/${{ env.REPO_NAME }}:${IMAGE_NAME}"
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
       - name: Login to Quay.io Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_BS_USERNAME }}
           password: ${{ secrets.QUAY_BS_ROBOT_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: ./
           file: ./Dockerfile
@@ -264,7 +258,9 @@ jobs:
           build-args: |
             MUSL_CROSS_MAKE_GIT_TAG=v${{ github.event.inputs.version }}
             TRIPLE_TARGET=${{ matrix.triples.arch_type }}
-          tags: ${{ steps.prepare-build.outputs.tags }}
+          tags: |
+            ${{ steps.prepare-build.outputs.tags }}
+            ${{ env.REGISTRY_NAME }}/${{ env.REPO_NAME }}:${{ matrix.triples.arch_type }}-latest
 
       - name: Clear
         if: always()

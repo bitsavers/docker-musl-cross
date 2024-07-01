@@ -1,4 +1,4 @@
-FROM amd64/alpine:3.18
+FROM amd64/alpine:3
 LABEL maintainer="bitsaver <contact@bitsaver>"
 
 ARG MUSL_CROSS_MAKE_GIT_TAG
